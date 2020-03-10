@@ -23,7 +23,7 @@ import numpy as np
 from pandas._config import get_option
 
 from pandas._libs import lib, properties, reshape, tslibs
-from pandas._typing import Label
+from pandas._typing import Label, FloatOrSeriesUnion, FrameOrSeries
 from pandas.compat.numpy import function as nv
 from pandas.util._decorators import Appender, Substitution, doc
 from pandas.util._validators import validate_bool_kwarg, validate_percentile
@@ -2242,6 +2242,46 @@ Name: Max Speed, dtype: float64
         if len(this) == 0:
             return np.nan
         return nanops.nancov(this.values, other.values, min_periods=min_periods)
+
+    def corrwith(self, other: FrameOrSeries, method="pearson") -> FloatOrSeriesUnion:
+        """
+        Compute correlation with `other` Series, excluding missing values.
+
+        Pairwise correlation is computed between rows or columns of
+        DataFrame with rows or columns of Series or DataFrame. DataFrames
+        are first aligned along both axes before computing the
+        correlations.
+
+        Parameters
+        ----------
+        other : DataFrame, Series
+            Object with which to compute correlations.
+        drop : bool, default False
+            Drop missing indices from result.
+        method : {'pearson', 'kendall', 'spearman'} or callable
+            Method of correlation:
+
+            * pearson : standard correlation coefficient
+            * kendall : Kendall Tau correlation coefficient
+            * spearman : Spearman rank correlation
+            * callable: callable with input two 1d ndarrays
+                and returning a float.
+
+            .. versionadded:: 0.24.0
+
+        Returns
+        -------
+        Series
+            Pairwise correlations.
+
+        See Also
+        --------
+        DataFrame.corr
+        """
+        if isinstance(other, Series):
+            return self.corr(other)
+
+        return other.apply(lambda x: self.corr(x, method=method))
 
     def diff(self, periods=1) -> "Series":
         """

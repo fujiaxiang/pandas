@@ -48,7 +48,7 @@ Dtype = Union[str, np.dtype, "ExtensionDtype"]
 DtypeObj = Union[np.dtype, "ExtensionDtype"]
 FilePathOrBuffer = Union[str, Path, IO[AnyStr]]
 
-# FrameOrSeriesUnion  means either a DataFrame or a Series. E.g.
+# FrameOrSeriesUnion means either a DataFrame or a Series. E.g.
 # `def func(a: FrameOrSeriesUnion) -> FrameOrSeriesUnion: ...` means that if a Series
 # is passed in, either a Series or DataFrame is returned, and if a DataFrame is passed
 # in, either a DataFrame or a Series is returned.
@@ -59,6 +59,9 @@ FrameOrSeriesUnion = Union["DataFrame", "Series"]
 # Series is passed into a function, a Series is always returned and if a DataFrame is
 # passed in, a DataFrame is always returned.
 FrameOrSeries = TypeVar("FrameOrSeries", bound="NDFrame")
+
+# FloatOrSeriesUnion means either a float or a Series.
+FloatOrSeriesUnion = Union[float, "Series"]
 
 Axis = Union[str, int]
 Label = Optional[Hashable]

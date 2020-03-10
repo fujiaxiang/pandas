@@ -65,6 +65,7 @@ common_apply_whitelist = (
             "tshift",
             "skew",
             "corr",
+            "corrwith",
             "cov",
             "diff",
         ]
@@ -84,7 +85,7 @@ series_apply_whitelist = (
     )
 ) | frozenset(["dtype", "unique"])
 
-dataframe_apply_whitelist = common_apply_whitelist | frozenset(["dtypes", "corrwith"])
+dataframe_apply_whitelist = common_apply_whitelist | frozenset(["dtypes"])
 
 # cythonized transformations or canned "agg+broadcast", which do not
 # require postprocessing of the result by transform.
@@ -98,6 +99,7 @@ reduction_kernels = frozenset(
     [
         "all",
         "any",
+        "corrwith",
         "count",
         "first",
         "idxmax",
@@ -132,7 +134,6 @@ transformation_kernels = frozenset(
     [
         "backfill",
         "bfill",
-        "corrwith",
         "cumcount",
         "cummax",
         "cummin",
