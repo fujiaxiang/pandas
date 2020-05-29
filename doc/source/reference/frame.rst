@@ -240,18 +240,19 @@ Reshaping, sorting, transposing
    DataFrame.T
    DataFrame.transpose
 
-Combining / joining / merging
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Combining / comparing / joining / merging
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autosummary::
    :toctree: api/
 
    DataFrame.append
    DataFrame.assign
+   DataFrame.compare
    DataFrame.join
    DataFrame.merge
    DataFrame.update
 
-Time series-related
+Time Series-related
 ~~~~~~~~~~~~~~~~~~~
 .. autosummary::
    :toctree: api/

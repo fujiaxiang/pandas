@@ -796,7 +796,7 @@ before plotting.
 
 .. _visualization.tools:
 
-Plotting Tools
+Plotting tools
 --------------
 
 These functions can be imported from ``pandas.plotting``
@@ -821,7 +821,7 @@ You can create a scatter plot matrix using the
    df = pd.DataFrame(np.random.randn(1000, 4), columns=['a', 'b', 'c', 'd'])
 
    @savefig scatter_matrix_kde.png
-   scatter_matrix(df, alpha=0.2, figsize=(6, 6), diagonal='kde')
+   scatter_matrix(df, alpha=0.2, figsize=(6, 6), diagonal='kde');
 
 .. ipython:: python
    :suppress:
@@ -1045,7 +1045,7 @@ for more information.
 
 .. _visualization.formatting:
 
-Plot Formatting
+Plot formatting
 ---------------
 
 Setting the plot style
@@ -1683,4 +1683,4 @@ to generate the plots. Some libraries implementing a backend for pandas are list
 on the ecosystem :ref:`ecosystem.visualization` page.
 
 Developers guide can be found at
-https://dev.pandas.io/docs/development/extending.html#plotting-backends
+https://pandas.pydata.org/docs/dev/development/extending.html#plotting-backends

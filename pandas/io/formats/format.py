@@ -56,22 +56,14 @@ from pandas.core.dtypes.common import (
     is_scalar,
     is_timedelta64_dtype,
 )
-from pandas.core.dtypes.generic import (
-    ABCDatetimeIndex,
-    ABCIndexClass,
-    ABCMultiIndex,
-    ABCPeriodIndex,
-    ABCSeries,
-    ABCSparseArray,
-    ABCTimedeltaIndex,
-)
 from pandas.core.dtypes.missing import isna, notna
 
 from pandas.core.arrays.datetimes import DatetimeArray
 from pandas.core.arrays.timedeltas import TimedeltaArray
 from pandas.core.base import PandasObject
 import pandas.core.common as com
-from pandas.core.indexes.api import Index, ensure_index
+from pandas.core.construction import extract_array
+from pandas.core.indexes.api import Index, MultiIndex, PeriodIndex, ensure_index
 from pandas.core.indexes.datetimes import DatetimeIndex
 from pandas.core.indexes.timedeltas import TimedeltaIndex
 
@@ -81,10 +73,10 @@ from pandas.io.formats.printing import adjoin, justify, pprint_thing
 if TYPE_CHECKING:
     from pandas import Series, DataFrame, Categorical
 
-formatters_type = Union[
+FormattersType = Union[
     List[Callable], Tuple[Callable, ...], Mapping[Union[str, int], Callable]
 ]
-float_format_type = Union[str, Callable, "EngFormatter"]
+FloatFormatType = Union[str, Callable, "EngFormatter"]
 
 common_docstring = """
         Parameters
@@ -283,9 +275,7 @@ class SeriesFormatter:
                 series = series.iloc[:max_rows]
             else:
                 row_num = max_rows // 2
-                series = series._ensure_type(
-                    concat((series.iloc[:row_num], series.iloc[-row_num:]))
-                )
+                series = concat((series.iloc[:row_num], series.iloc[-row_num:]))
             self.tr_row_num = row_num
         else:
             self.tr_row_num = None
@@ -298,7 +288,7 @@ class SeriesFormatter:
 
         if getattr(self.series.index, "freq", None) is not None:
             assert isinstance(
-                self.series.index, (ABCDatetimeIndex, ABCPeriodIndex, ABCTimedeltaIndex)
+                self.series.index, (DatetimeIndex, PeriodIndex, TimedeltaIndex)
             )
             footer += f"Freq: {self.series.index.freqstr}"
 
@@ -333,7 +323,7 @@ class SeriesFormatter:
 
     def _get_formatted_index(self) -> Tuple[List[str], bool]:
         index = self.tr_series.index
-        is_multi = isinstance(index, ABCMultiIndex)
+        is_multi = isinstance(index, MultiIndex)
 
         if is_multi:
             have_header = any(name for name in index.names)
@@ -455,7 +445,7 @@ class TableFormatter:
 
     show_dimensions: Union[bool, str]
     is_truncated: bool
-    formatters: formatters_type
+    formatters: FormattersType
     columns: Index
 
     @property
@@ -548,9 +538,9 @@ class DataFrameFormatter(TableFormatter):
         header: Union[bool, Sequence[str]] = True,
         index: bool = True,
         na_rep: str = "NaN",
-        formatters: Optional[formatters_type] = None,
+        formatters: Optional[FormattersType] = None,
         justify: Optional[str] = None,
-        float_format: Optional[float_format_type] = None,
+        float_format: Optional[FloatFormatType] = None,
         sparsify: Optional[bool] = None,
         index_names: bool = True,
         line_width: Optional[int] = None,
@@ -980,7 +970,7 @@ class DataFrameFormatter(TableFormatter):
 
         columns = frame.columns
 
-        if isinstance(columns, ABCMultiIndex):
+        if isinstance(columns, MultiIndex):
             fmt_columns = columns.format(sparsify=False, adjoin=False)
             fmt_columns = list(zip(*fmt_columns))
             dtypes = self.frame.dtypes._values
@@ -1040,7 +1030,7 @@ class DataFrameFormatter(TableFormatter):
         columns = frame.columns
         fmt = self._get_formatter("__index__")
 
-        if isinstance(index, ABCMultiIndex):
+        if isinstance(index, MultiIndex):
             fmt_index = index.format(
                 sparsify=self.sparsify,
                 adjoin=False,
@@ -1075,7 +1065,7 @@ class DataFrameFormatter(TableFormatter):
     def _get_column_name_list(self) -> List[str]:
         names: List[str] = []
         columns = self.frame.columns
-        if isinstance(columns, ABCMultiIndex):
+        if isinstance(columns, MultiIndex):
             names.extend("" if name is None else name for name in columns.names)
         else:
             names.append("" if columns.name is None else columns.name)
@@ -1089,7 +1079,7 @@ class DataFrameFormatter(TableFormatter):
 def format_array(
     values: Any,
     formatter: Optional[Callable],
-    float_format: Optional[float_format_type] = None,
+    float_format: Optional[FloatFormatType] = None,
     na_rep: str = "NaN",
     digits: Optional[int] = None,
     space: Optional[Union[str, int]] = None,
@@ -1126,7 +1116,7 @@ def format_array(
     fmt_klass: Type[GenericArrayFormatter]
     if is_datetime64_dtype(values.dtype):
         fmt_klass = Datetime64Formatter
-    elif is_datetime64tz_dtype(values):
+    elif is_datetime64tz_dtype(values.dtype):
         fmt_klass = Datetime64TZFormatter
     elif is_timedelta64_dtype(values.dtype):
         fmt_klass = Timedelta64Formatter
@@ -1171,7 +1161,7 @@ class GenericArrayFormatter:
         formatter: Optional[Callable] = None,
         na_rep: str = "NaN",
         space: Union[str, int] = 12,
-        float_format: Optional[float_format_type] = None,
+        float_format: Optional[FloatFormatType] = None,
         justify: str = "right",
         decimal: str = ".",
         quoting: Optional[int] = None,
@@ -1230,13 +1220,13 @@ class GenericArrayFormatter:
                 # object dtype
                 return str(formatter(x))
 
-        vals = self.values
-        if isinstance(vals, Index):
-            vals = vals._values
-        elif isinstance(vals, ABCSparseArray):
-            vals = vals.values
+        vals = extract_array(self.values, extract_numpy=True)
 
-        is_float_type = lib.map_infer(vals, is_float) & notna(vals)
+        is_float_type = (
+            lib.map_infer(vals, is_float)
+            # vals may have 2 or more dimensions
+            & np.all(notna(vals), axis=tuple(range(1, len(vals.shape))))
+        )
         leading_space = self.leading_space
         if leading_space is None:
             leading_space = is_float_type.any()
@@ -1278,7 +1268,7 @@ class FloatArrayFormatter(GenericArrayFormatter):
 
     def _value_formatter(
         self,
-        float_format: Optional[float_format_type] = None,
+        float_format: Optional[FloatFormatType] = None,
         threshold: Optional[Union[float, int]] = None,
     ) -> Callable:
         """Returns a function to be applied on each value to format it"""
@@ -1352,8 +1342,6 @@ class FloatArrayFormatter(GenericArrayFormatter):
             values = self.values
             is_complex = is_complex_dtype(values)
             mask = isna(values)
-            if hasattr(values, "to_dense"):  # sparse numpy ndarray
-                values = values.to_dense()
             values = np.array(values, dtype="object")
             values[mask] = na_rep
             imask = (~mask).ravel()
@@ -1372,7 +1360,7 @@ class FloatArrayFormatter(GenericArrayFormatter):
 
         # There is a special default string when we are fixed-width
         # The default is otherwise to use str instead of a formatting string
-        float_format: Optional[float_format_type]
+        float_format: Optional[FloatFormatType]
         if self.float_format is None:
             if self.fixed_width:
                 float_format = partial(
@@ -1461,9 +1449,7 @@ class Datetime64Formatter(GenericArrayFormatter):
 
 class ExtensionArrayFormatter(GenericArrayFormatter):
     def _format_strings(self) -> List[str]:
-        values = self.values
-        if isinstance(values, (ABCIndexClass, ABCSeries)):
-            values = values._values
+        values = extract_array(self.values, extract_numpy=True)
 
         formatter = values._formatter(boxed=True)
 
@@ -1559,7 +1545,7 @@ def _is_dates_only(
     values: Union[np.ndarray, DatetimeArray, Index, DatetimeIndex]
 ) -> bool:
     # return a boolean if we are only dates (and don't have a timezone)
-    assert values.ndim == 1
+    values = values.ravel()
 
     values = DatetimeIndex(values)
     if values.tz is not None:
@@ -1684,14 +1670,9 @@ def _get_format_timedelta64(
     even_days = (
         np.logical_and(consider_values, values_int % one_day_nanos != 0).sum() == 0
     )
-    all_sub_day = (
-        np.logical_and(consider_values, np.abs(values_int) >= one_day_nanos).sum() == 0
-    )
 
     if even_days:
         format = None
-    elif all_sub_day:
-        format = "sub_day"
     else:
         format = "long"
 
@@ -1780,7 +1761,7 @@ def _trim_zeros_float(
 
 
 def _has_names(index: Index) -> bool:
-    if isinstance(index, ABCMultiIndex):
+    if isinstance(index, MultiIndex):
         return com.any_not_none(*index.names)
     else:
         return index.name is not None

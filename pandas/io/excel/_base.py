@@ -1,5 +1,5 @@
 import abc
-from datetime import date, datetime, timedelta
+import datetime
 from io import BytesIO
 import os
 from textwrap import fill
@@ -8,7 +8,7 @@ from pandas._config import config
 
 from pandas._libs.parsers import STR_NA_VALUES
 from pandas.errors import EmptyDataError
-from pandas.util._decorators import Appender
+from pandas.util._decorators import Appender, deprecate_nonkeyword_arguments
 
 from pandas.core.dtypes.common import is_bool, is_float, is_integer, is_list_like
 
@@ -28,7 +28,6 @@ from pandas.io.excel._util import (
     _pop_header_name,
     get_writer,
 )
-from pandas.io.formats.printing import pprint_thing
 from pandas.io.parsers import TextParser
 
 _read_excel_doc = (
@@ -267,6 +266,7 @@ Comment lines in the excel input file can be skipped using the `comment` kwarg
 )
 
 
+@deprecate_nonkeyword_arguments(allowed_args=2, version="2.0")
 @Appender(_read_excel_doc)
 def read_excel(
     io,
@@ -365,6 +365,9 @@ class _BaseExcelReader(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def load_workbook(self, filepath_or_buffer):
+        pass
+
+    def close(self):
         pass
 
     @property
@@ -628,8 +631,8 @@ class ExcelWriter(metaclass=abc.ABCMeta):
                     engine = config.get_option(f"io.excel.{ext}.writer")
                     if engine == "auto":
                         engine = _get_default_writer(ext)
-                except KeyError:
-                    raise ValueError(f"No engine for filetype: '{ext}'")
+                except KeyError as err:
+                    raise ValueError(f"No engine for filetype: '{ext}'") from err
             cls = get_writer(engine)
 
         return object.__new__(cls)
@@ -742,11 +745,11 @@ class ExcelWriter(metaclass=abc.ABCMeta):
             val = float(val)
         elif is_bool(val):
             val = bool(val)
-        elif isinstance(val, datetime):
+        elif isinstance(val, datetime.datetime):
             fmt = self.datetime_format
-        elif isinstance(val, date):
+        elif isinstance(val, datetime.date):
             fmt = self.date_format
-        elif isinstance(val, timedelta):
+        elif isinstance(val, datetime.timedelta):
             val = val.total_seconds() / float(86400)
             fmt = "0"
         else:
@@ -763,9 +766,7 @@ class ExcelWriter(metaclass=abc.ABCMeta):
         if ext.startswith("."):
             ext = ext[1:]
         if not any(ext in extension for extension in cls.supported_extensions):
-            msg = "Invalid extension for engine"
-            f"'{pprint_thing(cls.engine)}': '{pprint_thing(ext)}'"
-            raise ValueError(msg)
+            raise ValueError(f"Invalid extension for engine '{cls.engine}': '{ext}'")
         else:
             return True
 
@@ -898,14 +899,7 @@ class ExcelFile:
 
     def close(self):
         """close io if necessary"""
-        if self.engine == "openpyxl":
-            # https://stackoverflow.com/questions/31416842/
-            #  openpyxl-does-not-close-excel-workbook-in-read-only-mode
-            wb = self.book
-            wb._archive.close()
-
-        if hasattr(self.io, "close"):
-            self.io.close()
+        self._reader.close()
 
     def __enter__(self):
         return self

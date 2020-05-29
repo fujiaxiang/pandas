@@ -110,7 +110,7 @@ Binary operator functions
    Series.product
    Series.dot
 
-Function application, groupby & window
+Function application, GroupBy & window
 --------------------------------------
 .. autosummary::
    :toctree: api/
@@ -240,16 +240,17 @@ Reshaping, sorting
    Series.squeeze
    Series.view
 
-Combining / joining / merging
------------------------------
+Combining / comparing / joining / merging
+-----------------------------------------
 .. autosummary::
    :toctree: api/
 
    Series.append
+   Series.compare
    Series.replace
    Series.update
 
-Time series-related
+Time Series-related
 -------------------
 .. autosummary::
    :toctree: api/
